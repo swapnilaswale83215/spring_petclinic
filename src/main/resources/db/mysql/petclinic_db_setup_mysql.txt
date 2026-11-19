@@ -8,7 +8,7 @@
 
 --------------------------------------------------------------------------------
 
-1) Download and install the MySQL database (e.g., MySQL Community Server 5.1.x),
+1) Download and install the MySQL database (e.g., MySQL Community Server 8.4),
    which can be found here: https://dev.mysql.com/downloads/. Or run the
    "docker-compose.yml" from the root of the project (if you have docker installed
    locally):
