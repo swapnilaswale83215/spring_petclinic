@@ -29,6 +29,7 @@ import org.springframework.boot.testcontainers.service.connection.ServiceConnect
 import org.springframework.http.HttpStatus;
 import org.springframework.http.RequestEntity;
 import org.springframework.http.ResponseEntity;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.samples.petclinic.vet.VetRepository;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.aot.DisabledInAotMode;
@@ -47,7 +48,7 @@ class MySqlIntegrationTests {
 
 	@ServiceConnection
 	@Container
-	static MySQLContainer container = new MySQLContainer(DockerImageName.parse("mysql:9.7"));
+	static MySQLContainer container = new MySQLContainer(DockerImageName.parse("mysql:8.4"));
 
 	@LocalServerPort
 	int port;
@@ -57,6 +58,9 @@ class MySqlIntegrationTests {
 
 	@Autowired
 	private RestTemplateBuilder builder;
+
+	@Autowired
+	private JdbcTemplate jdbcTemplate;
 
 	@Test
 	void findAll() {
@@ -69,6 +73,12 @@ class MySqlIntegrationTests {
 		RestTemplate template = builder.baseUri("http://localhost:" + port).build();
 		ResponseEntity<String> result = template.exchange(RequestEntity.get("/owners/1").build(), String.class);
 		assertThat(result.getStatusCode()).isEqualTo(HttpStatus.OK);
+	}
+
+	@Test
+	void serverVersion() {
+		String version = jdbcTemplate.queryForObject("SELECT VERSION()", String.class);
+		assertThat(version).startsWith("8.4");
 	}
 
 }
