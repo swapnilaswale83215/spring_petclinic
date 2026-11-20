@@ -18,6 +18,12 @@ package org.springframework.samples.petclinic;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.Statement;
+
+import javax.sql.DataSource;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.DisabledInNativeImage;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -47,7 +53,7 @@ class MySqlIntegrationTests {
 
 	@ServiceConnection
 	@Container
-	static MySQLContainer container = new MySQLContainer(DockerImageName.parse("mysql:9.7"));
+	static MySQLContainer container = new MySQLContainer(DockerImageName.parse("mysql:8.4"));
 
 	@LocalServerPort
 	int port;
@@ -57,6 +63,9 @@ class MySqlIntegrationTests {
 
 	@Autowired
 	private RestTemplateBuilder builder;
+
+	@Autowired
+	private DataSource dataSource;
 
 	@Test
 	void findAll() {
@@ -69,6 +78,17 @@ class MySqlIntegrationTests {
 		RestTemplate template = builder.baseUri("http://localhost:" + port).build();
 		ResponseEntity<String> result = template.exchange(RequestEntity.get("/owners/1").build(), String.class);
 		assertThat(result.getStatusCode()).isEqualTo(HttpStatus.OK);
+	}
+
+	@Test
+	void mysqlServerVersionIs84() throws Exception {
+		try (Connection connection = dataSource.getConnection();
+				Statement statement = connection.createStatement();
+				ResultSet resultSet = statement.executeQuery("SELECT VERSION()")) {
+			assertThat(resultSet.next()).isTrue();
+			String version = resultSet.getString(1);
+			assertThat(version).startsWith("8.4");
+		}
 	}
 
 }
