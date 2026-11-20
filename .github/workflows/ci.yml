@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches: [ "**" ]
+  pull_request:
+    branches: [ "**" ]
+
+jobs:
+  build:
+    name: Build and Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: MySQL image tag consistency check
+        # FR-007, FR-008, FR-018, FR-022, FR-026
+        # Fails immediately (continue-on-error: false is the default) when any
+        # mysql:<tag> reference other than mysql:8.4 is found in src/,
+        # docker-compose files, or .github/.
+        # The script also appends a structured line to $GITHUB_STEP_SUMMARY.
+        run: |
+          bash scripts/check-mysql-tag.sh
+          STATUS=$?
+          if [ $STATUS -eq 0 ]; then
+            echo "All mysql: references are compliant (mysql:8.4 only)" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Non-compliant mysql: references detected — see step log for file paths and line numbers" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          exit $STATUS
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Build with Maven
+        run: ./mvnw -B verify --no-transfer-progress
