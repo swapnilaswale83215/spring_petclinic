@@ -1,0 +1,561 @@
+version: 1
+repo:
+  name: spring_petclinic
+  root: D:\Project Repository\Spring-petclinic-Git\spring_petclinic
+  vcs: github
+  host: null
+  ci: github-actions
+modules: []
+rules:
+- id: no-secrets
+  text: 'Never write a credential, API key, token, password or connection string into source, config,
+    tests or fixtures. Read them from the project''s configured secret store. If one is needed and missing,
+    stop and ask.
+
+    '
+  scope: []
+  level: blocking
+  priority: 100
+  source: base
+- id: no-ci-edits
+  text: 'Never modify CI pipeline definitions, branch protection, or the CodeRig configuration itself.
+    These define the guardrails you operate under.
+
+    '
+  scope: []
+  level: blocking
+  priority: 100
+  source: base
+- id: no-bypass-verify
+  text: 'Never bypass verification: no --no-verify, no skip hooks, no disabling a failing test to make
+    a build pass, no lint suppression for errors you introduced.
+
+    '
+  scope: []
+  level: blocking
+  priority: 100
+  source: base
+- id: no-force-push
+  text: 'Never force-push, rebase a shared branch, amend a pushed commit, or run destructive git commands
+    (reset --hard, clean -fdx) without being asked explicitly in this session.
+
+    '
+  scope: []
+  level: blocking
+  priority: 100
+  source: base
+- id: plan-first
+  text: 'Before writing code: capture the request, ask every clarifying question at once, state your assumptions,
+    and produce a plan. Commit the plan first and wait for human approval. Do not start implementing before
+    that approval exists.
+
+    '
+  scope: []
+  level: advisory
+  priority: 80
+  source: base
+- id: tests-with-code
+  text: 'Tests ship in the same change as the code they cover. Cover the happy path, at least one failure
+    path, and any authorization boundary the change touches. Do not defer tests to a follow-up.
+
+    '
+  scope: []
+  level: advisory
+  priority: 70
+  source: base
+- id: scope-discipline
+  text: 'Change only what the approved plan covers. If you discover that a fix requires touching a file
+    outside the agreed scope, stop and say so rather than widening the change yourself.
+
+    '
+  scope: []
+  level: advisory
+  priority: 70
+  source: base
+- id: no-comments
+  text: "Default to writing no comments. Only add one when the WHY is non-obvious. Do not explain WHAT\
+    \ the code does \u2014 well-named identifiers already do that.\n"
+  scope: []
+  level: advisory
+  priority: 40
+  source: base
+- id: git-commit-format
+  text: "Every commit message must follow Conventional Commits: type(scope): short description \u2014\
+    \ e.g. fix(auth): handle token expiry edge case. Valid types: feat, fix, refactor, test, docs, chore,\
+    \ ci, perf, style. The message must reference the issue or ticket ID (e.g. \"Closes #123\" or \"PROJ-456\"\
+    ). Never use vague messages like \"fix\", \"update\", or \"WIP\".\n"
+  scope: []
+  level: blocking
+  priority: 90
+  source: base
+- id: git-branch-naming
+  text: "Branch names must follow: type/issue-id-short-description \u2014 e.g. feat/PROJ-123-oauth-refresh.\
+    \ Never commit directly to main or develop. All changes must go through a branch and a pull request.\
+    \ Squash-merge is the default policy; linear history is required on main.\n"
+  scope: []
+  level: blocking
+  priority: 90
+  source: base
+- id: git-pr-required
+  text: "Every pull request description must include four sections: What changed, Why (business or technical\
+    \ reason), How tested (manual steps or test names), and Risks and rollback plan. A PR without all\
+    \ four sections must not be merged. The agent must never merge its own PR \u2014 a human reviewer\
+    \ must approve first.\n"
+  scope: []
+  level: blocking
+  priority: 90
+  source: base
+hazards: []
+boundaries:
+  blocked:
+  - .github/workflows/**
+  - '**/.env'
+  - '**/.env.*'
+  - '**/auth/**'
+  - '**/Auth/**'
+  - '**/security/**'
+  - '**/Security/**'
+  - '**/*Authentication*'
+  - '**/*Authorization*'
+  - '**/*.pem'
+  - '**/*.p12'
+  - '**/*.pfx'
+  - '**/id_rsa'
+  - '**/credentials'
+  reason:
+    .github/workflows/**: CI config defines the gates; agents must not edit it
+    '**/.env': "Contains secrets \u2014 never commit or overwrite"
+    '**/.env.*': "Contains secrets \u2014 never commit or overwrite"
+    '**/*.pem': "Private key material \u2014 never touch"
+    '**/id_rsa': "Private key material \u2014 never touch"
+context: []
+profiles:
+- role: developer
+  mcp:
+  - launchpad
+  write:
+  - src/**
+  - tests/**
+  - docs/**
+  commands: []
+- role: tech-lead
+  mcp:
+  - launchpad
+  write:
+  - src/**
+  - tests/**
+  - docs/**
+  - '*.yaml'
+  - '*.yml'
+  - '*.toml'
+  - '*.json'
+  commands: []
+- role: qa
+  mcp:
+  - launchpad
+  write:
+  - tests/**
+  - docs/**
+  commands: []
+- role: ba
+  mcp:
+  - launchpad
+  write:
+  - docs/**
+  commands: []
+- role: product-owner
+  mcp:
+  - launchpad
+  write:
+  - docs/**
+  commands: []
+gates:
+- id: blocked-scope
+  cmd: coderig gate blocked-scope
+  blocking: true
+  module: null
+- id: plan-commit
+  cmd: coderig gate plan-commit
+  blocking: true
+  module: null
+- id: drift
+  cmd: coderig gate drift
+  blocking: false
+  module: null
+policy:
+  risk_matrix: test
+  model_tier: balanced
+  residency: null
+  gateway_url: http://localhost:4000
+  require_plan_commit: true
+  context_budget_chars: 6000
+  skip_local_detection: true
+connection:
+  workspace: proj-d9b4cf
+  gateway:
+    base_url: http://localhost:4000
+    wire:
+      anthropic: ''
+      openai: /v1
+  mcp:
+  - name: launchpad
+    url: http://localhost:8000/mcp
+    access: write
+    transport: http
+    tools: []
+    headers:
+      Authorization: Bearer ${CODERIG_TOKEN}
+    read_only_url: null
+  portal: null
+  identity:
+    user: null
+    token_env: CODERIG_TOKEN
+    workspace: proj-d9b4cf
+  guardrails:
+    blocked:
+    - .github/workflows/**
+    - '**/.env'
+    - '**/.env.*'
+    - '**/auth/**'
+    - '**/Auth/**'
+    - '**/security/**'
+    - '**/Security/**'
+    - '**/*Authentication*'
+    - '**/*Authorization*'
+    - '**/*.pem'
+    - '**/*.p12'
+    - '**/*.pfx'
+    - '**/id_rsa'
+    - '**/credentials'
+    approval_required:
+    - '**/migrations/**'
+    - '**/db/**'
+    reason:
+      .github/workflows/**: CI config defines the gates; agents must not edit it
+      '**/.env': "Contains secrets \u2014 never commit or overwrite"
+      '**/.env.*': "Contains secrets \u2014 never commit or overwrite"
+      '**/*.pem': "Private key material \u2014 never touch"
+      '**/id_rsa': "Private key material \u2014 never touch"
+    pii:
+    - EMAIL_ADDRESS
+    - PHONE_NUMBER
+    - CREDIT_CARD
+    - US_SSN
+    - IBAN_CODE
+    - IP_ADDRESS
+    - IN_PAN
+    - IN_AADHAAR
+  policy_ref: null
+  version: live
+  policy:
+    risk_matrix: test
+    model_tier: balanced
+    residency: null
+    gateway_url: http://localhost:4000
+    require_plan_commit: true
+    context_budget_chars: 6000
+    skip_local_detection: true
+  rules:
+  - id: no-secrets
+    text: 'Never write a credential, API key, token, password or connection string into source, config,
+      tests or fixtures. Read them from the project''s configured secret store. If one is needed and missing,
+      stop and ask.
+
+      '
+    scope: []
+    level: blocking
+    priority: 100
+    source: base
+  - id: no-ci-edits
+    text: 'Never modify CI pipeline definitions, branch protection, or the CodeRig configuration itself.
+      These define the guardrails you operate under.
+
+      '
+    scope: []
+    level: blocking
+    priority: 100
+    source: base
+  - id: no-bypass-verify
+    text: 'Never bypass verification: no --no-verify, no skip hooks, no disabling a failing test to make
+      a build pass, no lint suppression for errors you introduced.
+
+      '
+    scope: []
+    level: blocking
+    priority: 100
+    source: base
+  - id: no-force-push
+    text: 'Never force-push, rebase a shared branch, amend a pushed commit, or run destructive git commands
+      (reset --hard, clean -fdx) without being asked explicitly in this session.
+
+      '
+    scope: []
+    level: blocking
+    priority: 100
+    source: base
+  - id: plan-first
+    text: 'Before writing code: capture the request, ask every clarifying question at once, state your
+      assumptions, and produce a plan. Commit the plan first and wait for human approval. Do not start
+      implementing before that approval exists.
+
+      '
+    scope: []
+    level: advisory
+    priority: 80
+    source: base
+  - id: tests-with-code
+    text: 'Tests ship in the same change as the code they cover. Cover the happy path, at least one failure
+      path, and any authorization boundary the change touches. Do not defer tests to a follow-up.
+
+      '
+    scope: []
+    level: advisory
+    priority: 70
+    source: base
+  - id: scope-discipline
+    text: 'Change only what the approved plan covers. If you discover that a fix requires touching a file
+      outside the agreed scope, stop and say so rather than widening the change yourself.
+
+      '
+    scope: []
+    level: advisory
+    priority: 70
+    source: base
+  - id: no-comments
+    text: "Default to writing no comments. Only add one when the WHY is non-obvious. Do not explain WHAT\
+      \ the code does \u2014 well-named identifiers already do that.\n"
+    scope: []
+    level: advisory
+    priority: 40
+    source: base
+  - id: git-commit-format
+    text: "Every commit message must follow Conventional Commits: type(scope): short description \u2014\
+      \ e.g. fix(auth): handle token expiry edge case. Valid types: feat, fix, refactor, test, docs, chore,\
+      \ ci, perf, style. The message must reference the issue or ticket ID (e.g. \"Closes #123\" or \"\
+      PROJ-456\"). Never use vague messages like \"fix\", \"update\", or \"WIP\".\n"
+    scope: []
+    level: blocking
+    priority: 90
+    source: base
+  - id: git-branch-naming
+    text: "Branch names must follow: type/issue-id-short-description \u2014 e.g. feat/PROJ-123-oauth-refresh.\
+      \ Never commit directly to main or develop. All changes must go through a branch and a pull request.\
+      \ Squash-merge is the default policy; linear history is required on main.\n"
+    scope: []
+    level: blocking
+    priority: 90
+    source: base
+  - id: git-pr-required
+    text: "Every pull request description must include four sections: What changed, Why (business or technical\
+      \ reason), How tested (manual steps or test names), and Risks and rollback plan. A PR without all\
+      \ four sections must not be merged. The agent must never merge its own PR \u2014 a human reviewer\
+      \ must approve first.\n"
+    scope: []
+    level: blocking
+    priority: 90
+    source: base
+  profiles:
+  - role: developer
+    mcp:
+    - launchpad
+    write:
+    - src/**
+    - tests/**
+    - docs/**
+    commands: []
+  - role: tech-lead
+    mcp:
+    - launchpad
+    write:
+    - src/**
+    - tests/**
+    - docs/**
+    - '*.yaml'
+    - '*.yml'
+    - '*.toml'
+    - '*.json'
+    commands: []
+  - role: qa
+    mcp:
+    - launchpad
+    write:
+    - tests/**
+    - docs/**
+    commands: []
+  - role: ba
+    mcp:
+    - launchpad
+    write:
+    - docs/**
+    commands: []
+  - role: product-owner
+    mcp:
+    - launchpad
+    write:
+    - docs/**
+    commands: []
+  modules: []
+  gates:
+  - id: blocked-scope
+    cmd: coderig gate blocked-scope
+    blocking: true
+    module: null
+  - id: plan-commit
+    cmd: coderig gate plan-commit
+    blocking: true
+    module: null
+  - id: drift
+    cmd: coderig gate drift
+    blocking: false
+    module: null
+  stacks: []
+  ci_system: github-actions
+  vcs_host: github
+  model_control:
+    enforced_by: llm-gateway
+    default_tier: balanced
+    tiers:
+      economy:
+      - claude-haiku-4-5-20251001
+      balanced:
+      - claude-haiku-4-5-20251001
+      - claude-sonnet-5-5
+      - gpt-oss-120b
+      - claude-auto
+      frontier:
+      - claude-haiku-4-5-20251001
+      - claude-sonnet-5-5
+      - claude-opus-5-5
+      - gpt-oss-120b
+      - gpt-5.5
+      - claude-auto
+    role_tier:
+      ba: economy
+      product-owner: economy
+      qa: balanced
+      developer: balanced
+      tech-lead: frontier
+    budgets:
+      team:
+        max_budget: 500
+        budget_duration: 30d
+      user:
+        max_budget: 50
+        budget_duration: 30d
+        rpm_limit: 60
+        tpm_limit: 2000000
+    effective:
+      role: developer
+      tier: balanced
+      models:
+      - claude-haiku-4-5-20251001
+      - claude-sonnet-5-5
+      - gpt-oss-120b
+      - claude-auto
+      max_budget: 50.0
+      budget_duration: 30d
+      rpm_limit: 60
+      tpm_limit: 2000000
+  sensors:
+  - id: dependency-policy
+    description: Every dependency this change adds to a pom is on the project's approved list.
+    kind: local
+    run: python .coderig/checks.py dependency-policy
+    fix: null
+    docker: null
+    timeout: 60
+    blocking: true
+    applies_when:
+    - pom.xml
+    hint: This change adds a dependency that is not on the approved list (approved-dependencies.txt at
+      the repository root). Do not add a new library. Use one the project already has, or write the small
+      amount of code yourself. If a library is genuinely needed, stop and ask the developer to request
+      its approval; do not edit the approved list yourself. Re-check with `python .coderig/verify.py --only
+      dependency-policy`.
+    cwd: null
+  - id: format
+    description: Code follows the project's formatter (Spring Java Format, tabs).
+    kind: local
+    run: mvn -q spring-javaformat:validate
+    fix: mvn -q spring-javaformat:apply
+    docker:
+      image: maven:3.9-eclipse-temurin-17
+      workdir: /work
+      cache:
+        volume: coderig-m2
+        path: /root/.m2
+    timeout: 300
+    blocking: true
+    applies_when:
+    - pom.xml
+    hint: Formatting violations. This project uses Spring Java Format (tabs). Run `python .coderig/verify.py
+      --fix format` (it runs `mvn spring-javaformat:apply`) and re-check; do not hand-format.
+    cwd: null
+  - id: no-bypass
+    description: This change adds no disabled test, lint suppression or skipped verification.
+    kind: local
+    run: python .coderig/checks.py no-bypass
+    fix: null
+    docker: null
+    timeout: 60
+    blocking: true
+    applies_when: []
+    hint: This change disables a test, suppresses a lint or type check, or skips verification (--no-verify,
+      -DskipTests and similar). Fix the code or the test instead. Do not disable, skip or suppress to
+      get a green result. If a suppression is genuinely needed, the developer must approve it in review.
+      Re-check with `python .coderig/verify.py --only no-bypass`.
+    cwd: null
+  - id: secret-scan
+    description: This change adds no credential, key or token to source, config, tests or fixtures.
+    kind: local
+    run: python .coderig/checks.py secret-scan
+    fix: null
+    docker: null
+    timeout: 60
+    blocking: true
+    applies_when: []
+    hint: A credential, key or token was found in lines this change adds. Remove the value. Read the secret
+      from the project's secret store (an environment variable or the vault) instead. Do not add the file
+      or the line to .gitignore or a suppression list to get a green result. If the value was real, tell
+      the developer it must be rotated, because it is now in the working tree. Re-check with `python .coderig/verify.py
+      --only secret-scan`.
+    cwd: null
+  - id: tests
+    description: The project compiles and its unit and slice tests pass.
+    kind: local
+    run: mvn -B test -Dspring-javaformat.skip=true -Dtest=!MySqlIntegrationTests,!PostgresIntegrationTests
+    fix: null
+    docker:
+      image: maven:3.9-eclipse-temurin-17
+      workdir: /work
+      cache:
+        volume: coderig-m2
+        path: /root/.m2
+    timeout: 900
+    blocking: true
+    applies_when:
+    - pom.xml
+    hint: The build or the tests failed. Read the first compile error or the first failing test, and fix
+      the code. Change a test only if the test itself is wrong, and never disable, skip or weaken one
+      to get a green result. The MySQL and Postgres integration tests are excluded here because they need
+      Docker inside the container. Re-check with `python .coderig/verify.py --only tests`.
+    cwd: null
+  guide:
+    enabled: true
+    timeout: 5
+  launchpad_url: http://localhost:8000
+  member:
+    email: admin@xoriant.com
+    name: ADMIN
+    role: developer
+role: developer
+agents:
+- copilot
+packs:
+- launchpad:proj-d9b4cf@live
+meta:
+  mode: launchpad-first
+  stacks: []
+  rules_considered: 11
+  rules_kept: 11
+  detector_errors: {}
