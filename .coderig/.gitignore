@@ -2,3 +2,4 @@
 cache/
 state/
 role.json
+__pycache__/
