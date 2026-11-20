@@ -20,6 +20,8 @@ import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 /**
  * Repository class for <code>Owner</code> domain objects. All method names are compliant
@@ -43,6 +45,18 @@ public interface OwnerRepository extends JpaRepository<Owner, Integer> {
 	 * found)
 	 */
 	Page<Owner> findByLastNameStartingWith(String lastName, Pageable pageable);
+
+	/**
+	 * PETC-305 proof-of-functionality: exercises the SpEL helpers {@code escape()} and
+	 * {@code escapeCharacter()} inside a {@code @Query} string to confirm they are
+	 * supported by the Spring Data JPA version managed by the Spring Boot 4.1.0 BOM.
+	 * This method will be superseded by the production query in PETC-306.
+	 * @param prefix the last-name prefix to search for (wildcards are escaped)
+	 * @param pageable pagination descriptor
+	 * @return a {@link Page} of matching {@link Owner}s
+	 */
+	@Query("SELECT o FROM Owner o WHERE o.lastName LIKE :#{escape(#prefix)}% ESCAPE :#{escapeCharacter()}")
+	Page<Owner> findByLastNameStartingWithSpelProof(@Param("prefix") String prefix, Pageable pageable);
 
 	/**
 	 * Retrieve an {@link Owner} from the data store by id.
