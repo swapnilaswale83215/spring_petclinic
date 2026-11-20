@@ -27,3 +27,9 @@ jobs:
           cache: maven
       - name: Build with Maven Wrapper
         run: ./mvnw -B verify
+      - name: MySQL tag consistency check
+        run: |
+          chmod +x .github/scripts/check-mysql-tag.sh
+          .github/scripts/check-mysql-tag.sh | tee /tmp/mysql-tag-check.txt
+          echo "## MySQL Tag Consistency Check" >> $GITHUB_STEP_SUMMARY
+          cat /tmp/mysql-tag-check.txt >> $GITHUB_STEP_SUMMARY
