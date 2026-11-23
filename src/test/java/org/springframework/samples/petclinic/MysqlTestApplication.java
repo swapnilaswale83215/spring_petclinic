@@ -36,7 +36,8 @@ public class MysqlTestApplication {
 	@Profile("mysql")
 	@Bean
 	static MySQLContainer container() {
-		return new MySQLContainer(DockerImageName.parse("mysql:9.7"));
+		// PETC-323: target environment is MySQL 8.4 — confirmed image tag is mysql:8.4
+		return new MySQLContainer(DockerImageName.parse("mysql:8.4"));
 	}
 
 	public static void main(String[] args) {
