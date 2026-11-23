@@ -52,11 +52,51 @@ def command(sensor, text):
         return ([found] + args[1:]) if found else args
     mount = docker.get("workdir", "/work")
     inside = mount + ("/" + sensor_dir(sensor).relative_to(ROOT).as_posix() if sensor_dir(sensor) != ROOT else "")
-    wrapped = ["docker", "run", "--rm", "-v", f"{ROOT}:{mount}"]
+    wrapped = ["docker", "run", "--rm", "-v", f"{ROOT}:{mount}"] + worktree_mounts(mount)
     cache = docker.get("cache")
     if cache:
         wrapped += ["-v", f"{cache['volume']}:{cache['path']}"]
     return wrapped + ["-w", inside, docker["image"]] + args
+
+
+CONTAINER_GIT = "/coderig-git"
+
+
+def worktree_mounts(mount):
+    """Extra mounts that let git work inside the container when this checkout is a git worktree.
+
+    A worktree's .git is a file naming its git directory by a path on this machine (the Copilot app, Claude Code
+    and others run each session in one). That path does not exist in the container, so anything that reads git
+    there fails (a Maven build's git-commit-id plugin: "Could not get HEAD Ref"). The repository's git directory
+    is mounted read-only at CONTAINER_GIT, and the worktree's .git is overlaid with a pointer to it there.
+    A normal checkout (.git is a folder) needs nothing."""
+    dotgit = ROOT / ".git"
+    if not dotgit.is_file():
+        return []
+    try:
+        text = dotgit.read_text(encoding="utf-8").strip()
+    except OSError:
+        return []
+    if not text.startswith("gitdir:"):
+        return []
+    gitdir = Path(text[len("gitdir:"):].strip())
+    gitdir = (gitdir if gitdir.is_absolute() else ROOT / gitdir).resolve()
+    try:
+        common = (gitdir / (gitdir / "commondir").read_text(encoding="utf-8").strip()).resolve()
+    except OSError:
+        common = gitdir
+    try:
+        inner = gitdir.relative_to(common).as_posix()
+    except ValueError:
+        return []
+    pointer = HERE / "state" / "container-git"
+    try:
+        pointer.parent.mkdir(parents=True, exist_ok=True)
+        pointer.write_text(f"gitdir: {CONTAINER_GIT}/{inner}\n" if inner != "." else f"gitdir: {CONTAINER_GIT}\n",
+                           encoding="utf-8")
+    except OSError:
+        return []
+    return ["-v", f"{common}:{CONTAINER_GIT}:ro", "-v", f"{pointer}:{mount}/.git:ro"]
 
 
 # Build-tool boilerplate, matched by what the line STARTS with. (Matching anywhere in the line once
