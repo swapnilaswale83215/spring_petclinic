@@ -67,9 +67,11 @@ def worktree_mounts(mount):
 
     A worktree's .git is a file naming its git directory by a path on this machine (the Copilot app, Claude Code
     and others run each session in one). That path does not exist in the container, so anything that reads git
-    there fails (a Maven build's git-commit-id plugin: "Could not get HEAD Ref"). The repository's git directory
-    is mounted read-only at CONTAINER_GIT, and the worktree's .git is overlaid with a pointer to it there.
-    A normal checkout (.git is a folder) needs nothing."""
+    there fails (a Maven build's git-commit-id plugin: "Could not get HEAD Ref"), and tools built on JGit do not
+    follow a worktree's `commondir` link anyway. So the container gets a plain git directory instead: the current
+    branch and commit, with git's standard `objects/info/alternates` pointing at the repository's object store,
+    which is mounted read-only. The worktree's .git is overlaid with a pointer to it. A normal checkout (.git is
+    a folder) needs nothing."""
     dotgit = ROOT / ".git"
     if not dotgit.is_file():
         return []
@@ -85,18 +87,32 @@ def worktree_mounts(mount):
         common = (gitdir / (gitdir / "commondir").read_text(encoding="utf-8").strip()).resolve()
     except OSError:
         common = gitdir
-    try:
-        inner = gitdir.relative_to(common).as_posix()
-    except ValueError:
+    commit = git("rev-parse", "HEAD").strip()
+    if not commit or not (common / "objects").is_dir():
         return []
-    pointer = HERE / "state" / "container-git"
+    branch = git("symbolic-ref", "--quiet", "HEAD").strip()     # refs/heads/<name>, or empty when detached
+    view = HERE / "state" / "container-git"
+    pointer = HERE / "state" / "container-git.pointer"
     try:
-        pointer.parent.mkdir(parents=True, exist_ok=True)
-        pointer.write_text(f"gitdir: {CONTAINER_GIT}/{inner}\n" if inner != "." else f"gitdir: {CONTAINER_GIT}\n",
-                           encoding="utf-8")
+        # LF endings: on Windows a text write ends lines with CRLF, and git in the container would then read
+        # the alternates path with a carriage return on the end.
+        shutil.rmtree(view, ignore_errors=True)
+        (view / "objects" / "info").mkdir(parents=True)
+        (view / "refs" / "heads").mkdir(parents=True, exist_ok=True)
+        (view / "objects" / "info" / "alternates").write_text(f"{CONTAINER_GIT}/objects\n", encoding="utf-8", newline="\n")
+        (view / "config").write_text("[core]\n\trepositoryformatversion = 0\n\tbare = false\n", encoding="utf-8", newline="\n")
+        if branch.startswith("refs/heads/"):
+            ref = view / branch
+            ref.parent.mkdir(parents=True, exist_ok=True)
+            ref.write_text(commit + "\n", encoding="utf-8", newline="\n")
+            (view / "HEAD").write_text(f"ref: {branch}\n", encoding="utf-8", newline="\n")
+        else:
+            (view / "HEAD").write_text(commit + "\n", encoding="utf-8", newline="\n")
+        pointer.write_text(f"gitdir: {CONTAINER_GIT}-view\n", encoding="utf-8", newline="\n")
     except OSError:
         return []
-    return ["-v", f"{common}:{CONTAINER_GIT}:ro", "-v", f"{pointer}:{mount}/.git:ro"]
+    return ["-v", f"{common}:{CONTAINER_GIT}:ro", "-v", f"{view}:{CONTAINER_GIT}-view",
+            "-v", f"{pointer}:{mount}/.git:ro"]
 
 
 # Build-tool boilerplate, matched by what the line STARTS with. (Matching anywhere in the line once
