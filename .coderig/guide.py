@@ -3,7 +3,8 @@
 
 Run by the agent's prompt hook with --agent <name> (Claude Code and Codex UserPromptSubmit, Gemini
 CLI BeforeAgent): reads the hook event on stdin and adds the guidance to that turn, in the agent's
-own format (hookio.py). Fails open: any problem leaves the prompt as it is.
+own format (hookio.py). Fails open: any problem leaves the prompt as it is, and the developer is
+told once per session that no guidance was fetched.
 """
 import json
 import os
@@ -58,6 +59,26 @@ def remember(session, skills):
         pass
 
 
+def installed_sensors():
+    # Launchpad names the ones that check the guidance at finish only when they are really installed here.
+    try:
+        config = json.loads((ROOT / ".coderig" / "sensors.json").read_text(encoding="utf-8"))
+        return [s["id"] for s in config.get("sensors") or [] if isinstance(s, dict) and s.get("id")][:50]
+    except Exception:
+        return []
+
+
+def unavailable(agent, session, why):
+    """Guidance could not be fetched: the prompt goes ahead, and the developer hears so once per session."""
+    marker = "!unavailable"
+    if agent == "codex" or (session and marker in sent(session)):
+        return 0  # Codex's prompt hook prints to the model, not to the developer
+    if session:
+        remember(session, [marker])
+    return hookio.notice(agent, f"CodeRig could not fetch Launchpad's guidance for this task ({why}). "
+                                "The prompt went ahead without it; the finish-time checks still run.")
+
+
 def main():
     agent = hookio.agent()
     event = hookio.read_event()
@@ -74,15 +95,17 @@ def main():
         git("ls-files", "--others", "--exclude-standard").splitlines()
     body = {"prompt": prompt[:8000], "changed_files": changed[:200],
             "branch": git("rev-parse", "--abbrev-ref", "HEAD") or None,
-            "role": role(), "session_id": session or None}
+            "role": role(), "session_id": session or None, "sensors": installed_sensors()}
     request = urllib.request.Request(
         f"{LAUNCHPAD}/api/v1/workspace/{WORKSPACE}/guide", data=json.dumps(body).encode(),
         method="POST", headers={"Content-Type": "application/json"})
     try:
         with urllib.request.urlopen(request, timeout=TIMEOUT) as response:
             answer = json.loads(response.read() or b"{}")
-    except Exception:
-        return
+    except Exception as exc:
+        return unavailable(agent, session, type(exc).__name__)
+    if not isinstance(answer, dict):
+        return unavailable(agent, session, "an answer it could not read")
     skills = [s for s in answer.get("skills") or [] if isinstance(s, str)]
     guidance = answer.get("guidance")
     if not isinstance(guidance, str) or not guidance.strip() or not skills:

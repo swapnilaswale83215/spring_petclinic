@@ -109,8 +109,6 @@ hazards: []
 boundaries:
   blocked:
   - .github/workflows/**
-  - '**/.env'
-  - '**/.env.*'
   - '**/auth/**'
   - '**/Auth/**'
   - '**/security/**'
@@ -124,10 +122,15 @@ boundaries:
   - '**/credentials'
   reason:
     .github/workflows/**: CI config defines the gates; agents must not edit it
-    '**/.env': "Contains secrets \u2014 never commit or overwrite"
-    '**/.env.*': "Contains secrets \u2014 never commit or overwrite"
     '**/*.pem': "Private key material \u2014 never touch"
     '**/id_rsa': "Private key material \u2014 never touch"
+  secrets:
+    mode: block
+    local_files:
+    - '**/.env'
+    - '**/.env.*'
+    - .env
+    - .env.*
 context: []
 profiles:
 - role: developer
@@ -214,8 +217,6 @@ connection:
   guardrails:
     blocked:
     - .github/workflows/**
-    - '**/.env'
-    - '**/.env.*'
     - '**/auth/**'
     - '**/Auth/**'
     - '**/security/**'
@@ -232,8 +233,6 @@ connection:
     - '**/db/**'
     reason:
       .github/workflows/**: CI config defines the gates; agents must not edit it
-      '**/.env': "Contains secrets \u2014 never commit or overwrite"
-      '**/.env.*': "Contains secrets \u2014 never commit or overwrite"
       '**/*.pem': "Private key material \u2014 never touch"
       '**/id_rsa': "Private key material \u2014 never touch"
     pii:
@@ -245,6 +244,13 @@ connection:
     - IP_ADDRESS
     - IN_PAN
     - IN_AADHAAR
+    secrets:
+      mode: block
+      local_files:
+      - '**/.env'
+      - '**/.env.*'
+      - .env
+      - .env.*
   policy_ref: null
   version: live
   policy:
@@ -417,6 +423,7 @@ connection:
     tiers:
       economy:
       - claude-haiku-4-5-20251001
+      - claude-auto
       balanced:
       - claude-haiku-4-5-20251001
       - claude-sonnet-5-5
@@ -461,6 +468,9 @@ connection:
     description: Every dependency this change adds to a pom is on the project's approved list.
     kind: local
     run: python .coderig/checks.py dependency-policy
+    agent: null
+    policies: []
+    escalation: null
     fix: null
     docker: null
     timeout: 60
@@ -477,6 +487,9 @@ connection:
     description: Code follows the project's formatter (Spring Java Format, tabs).
     kind: local
     run: mvn -q spring-javaformat:validate
+    agent: null
+    policies: []
+    escalation: null
     fix: mvn -q spring-javaformat:apply
     docker:
       image: maven:3.9-eclipse-temurin-17
@@ -495,6 +508,9 @@ connection:
     description: This change adds no disabled test, lint suppression or skipped verification.
     kind: local
     run: python .coderig/checks.py no-bypass
+    agent: null
+    policies: []
+    escalation: null
     fix: null
     docker: null
     timeout: 60
@@ -505,10 +521,38 @@ connection:
       get a green result. If a suppression is genuinely needed, the developer must approve it in review.
       Re-check with `python .coderig/verify.py --only no-bypass`.
     cwd: null
+  - id: pii-exposure
+    description: This change does not log, expose or export personal data in a way the personal-data-handling
+      policy forbids.
+    kind: inferential
+    run: ''
+    agent: pii-reviewer
+    policies:
+    - personal-data-handling
+    escalation:
+      block_on: high
+      min_confidence: 0.7
+      on_error: warn
+    fix: null
+    docker: null
+    timeout: 120
+    blocking: true
+    applies_when: []
+    hint: 'Launchpad''s pii-reviewer read this change against the personal-data-handling policy and found
+      personal data that is logged, shown or exported where the policy forbids it. Each finding quotes
+      the added line it is about. Fix the code, not the finding: log the id instead of the person, mask
+      or drop the field in an export, keep personal data out of URLs, error messages and test fixtures.
+      Do not rename a field or split a line to hide it from the review. If the field genuinely has to
+      be there, stop and tell the developer why, so they can approve it in review. Re-check with `python
+      .coderig/verify.py --only pii-exposure`.'
+    cwd: null
   - id: secret-scan
     description: This change adds no credential, key or token to source, config, tests or fixtures.
     kind: local
     run: python .coderig/checks.py secret-scan
+    agent: null
+    policies: []
+    escalation: null
     fix: null
     docker: null
     timeout: 60
@@ -524,6 +568,9 @@ connection:
     description: The project compiles and its unit and slice tests pass.
     kind: local
     run: mvn -B test -Dspring-javaformat.skip=true -Dtest=!MySqlIntegrationTests,!PostgresIntegrationTests
+    agent: null
+    policies: []
+    escalation: null
     fix: null
     docker:
       image: maven:3.9-eclipse-temurin-17

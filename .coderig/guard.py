@@ -1,10 +1,15 @@
 #!/usr/bin/env python3
-"""CodeRig guard — refuses edits to blocked paths. Generated; do not edit.
+"""CodeRig guard — refuses edits to blocked paths, and a likely secret on its way into the repository.
+Generated; do not edit.
 
 Run by each agent's pre-tool hook with --agent <name> (Claude Code, Codex and Devin PreToolUse,
 Gemini CLI BeforeTool, Cursor preToolUse / beforeShellExecution, Copilot preToolUse). hookio.py reads that agent's
 payload and answers in its format. Any unexpected failure allows the call: a broken guard must
 never wedge a developer's session, because CI still enforces the same rules.
+
+Secrets: a file git ignores (`git check-ignore`) is local configuration, such as a developer's .env, and may hold
+real values. A likely secret written to any other file in the repository would be committed, so the workspace's
+secret policy decides: block (refuse the write), warn (allow it and tell the developer) or off.
 
 Regenerate with: coderig connect
 """
@@ -14,6 +19,7 @@ import fnmatch
 import json
 import re
 import shlex
+import subprocess
 import sys
 from pathlib import Path
 
@@ -22,8 +28,6 @@ import hookio  # noqa: E402  (generated next to this file)
 
 BLOCKED = json.loads(r'''[
   ".github/workflows/**",
-  "**/.env",
-  "**/.env.*",
   "**/auth/**",
   "**/Auth/**",
   "**/security/**",
@@ -38,11 +42,12 @@ BLOCKED = json.loads(r'''[
 ]''')
 REASONS = json.loads(r'''{
   ".github/workflows/**": "CI config defines the gates; agents must not edit it",
-  "**/.env": "Contains secrets \u2014 never commit or overwrite",
-  "**/.env.*": "Contains secrets \u2014 never commit or overwrite",
   "**/*.pem": "Private key material \u2014 never touch",
   "**/id_rsa": "Private key material \u2014 never touch"
 }''')
+SECRET_RULES = [(name, re.compile(rule)) for name, rule in json.loads(r'''[["private key", "-----BEGIN (RSA |EC |OPENSSH |DSA |PGP )?PRIVATE KEY-----"], ["AWS access key", "\\b(AKIA|ASIA)[0-9A-Z]{16}\\b"], ["GitHub token", "\\b(ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9]{36,}\\b|\\bgithub_pat_[A-Za-z0-9_]{60,}\\b"], ["Slack token", "\\bxox[abprs]-[A-Za-z0-9-]{10,}"], ["JSON web token", "\\beyJ[A-Za-z0-9_-]{10,}\\.[A-Za-z0-9_-]{10,}\\.[A-Za-z0-9_-]{10,}"], ["credential assignment", "(?i)\\b(password|passwd|pwd|pw|secret|api[_-]?key|access[_-]?token|auth[_-]?token|client[_-]?secret|connection[_-]?string)\\b\\s*[:=]\\s*[\"']([^\"'\\s$<{]{8,})[\"']"], ["credential setting", "(?i)^\\s*(export\\s+)?[a-z0-9_.-]*(password|passwd|secret|api[_-]?key|access[_-]?key|access[_-]?token|auth[_-]?token|client[_-]?secret|private[_-]?key)[a-z0-9_.-]*\\s*[:=]\\s*[\"']?([^\\s\"'$<{#()\\[\\];,]{8,})[\"']?\\s*$"]]''')]
+PLACEHOLDER = re.compile(json.loads(r'''"(?i)example|changeme|placeholder|dummy|xxxx|\\*\\*\\*|<[^>]*>|\\$\\{|process\\.env|os\\.environ|getenv|your[_-]"'''))
+SECRETS = json.loads(r'''{"mode": "block", "local_files": ["**/.env", "**/.env.*", ".env", ".env.*"]}''')
 # Role -> paths that role may write. The role is the one CodeRig connected this
 # checkout with (.coderig/role.json, for every agent). Enforced here rather than as
 # Claude Code permission rules, where a broad deny always beats a narrow allow.
@@ -98,10 +103,7 @@ def command_paths(command: str) -> list[str]:
     cannot say reliably what it will write."""
     if not WRITES.search(command):
         return []
-    try:
-        words = shlex.split(command, posix=True)
-    except ValueError:
-        words = command.split()
+    words = command_words(command)
     found = []
     for word in words:
         for part in word.replace(">", " ").replace("<", " ").replace("=", " ").split():
@@ -132,6 +134,54 @@ def blocked_by(rel: str):
     return None
 
 
+def command_words(command: str) -> list[str]:
+    try:
+        return shlex.split(command, posix=True)
+    except ValueError:
+        return command.split()
+
+
+def secrets_in(text: str) -> list:
+    """The rule names a likely secret in this text matches. Never the value."""
+    found = []
+    for line in text.splitlines():
+        if PLACEHOLDER.search(line):
+            continue
+        found += [name for name, rule in SECRET_RULES if name not in found and rule.search(line)]
+    return found
+
+
+def git_ignored(root: Path, rel: str) -> bool:
+    """Whether git ignores this path, so what is written there never reaches the repository. A tracked file is
+    never ignored, whatever .gitignore says."""
+    try:
+        done = subprocess.run(["git", "check-ignore", "-q", "--", rel], cwd=root, capture_output=True, timeout=5)
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return done.returncode == 0
+
+
+def secret_problem(root: Path, rel: str, text: str):
+    """The message for a likely secret written to a file that would be committed, else None."""
+    if SECRETS.get("mode", "block") == "off" or not text or Path(rel).is_absolute() or rel.startswith("../"):
+        return None                     # outside the repository: never committed from here
+    names = secrets_in(text)
+    if not names or git_ignored(root, rel):
+        return None
+    if in_scope(rel, SECRETS.get("local_files") or []):
+        why = "a local configuration file git does not ignore, so it would be committed"
+        instead = ("add it to .gitignore and keep real values there; a committed template such as .env.example "
+                   "holds names and placeholders only")
+    else:
+        why = "a file git tracks or would commit"
+        instead = ("read the value from the environment or the secret store; real values belong only in a "
+                   "git-ignored local file such as .env")
+    return (f"{rel}\n"
+            f"  found:   a likely secret ({', '.join(names)})\n"
+            f"  why:     {why}\n"
+            f"  instead: {instead}")
+
+
 def refuse(agent: str, rel: str, pattern: str) -> int:
     reason = REASONS.get(pattern, "blocked by the repository risk matrix")
     return hookio.block(agent,
@@ -158,6 +208,7 @@ def main() -> int:
     # prompt hook cannot refuse a prompt, is stopped here; the other agents' prompt hook stops them sooner.
     if not hookio.connected() and ((writing and event["paths"]) or event["command"]):
         return hookio.block(agent, hookio.not_connected(CONNECT))
+    secret_problems = []
     for raw in event["paths"]:
         rel = normalise(raw, root)
         # A blocked path is refused for every role, so its reason is the one to give, before the role's scope.
@@ -170,11 +221,25 @@ def main() -> int:
                 f"BLOCKED by CodeRig: {rel}\n"
                 f"  role:    {role} may write only: {allowed}\n"
                 f"  Stop and tell the developer; this role cannot make this change.")
+        problem = secret_problem(root, rel, event.get("content") or "") if writing else None
+        if problem:
+            secret_problems.append(problem)
+    # A command's secret is in one of its words (`echo "API_KEY=..." > config.yml`), not on a line of its own.
+    command_text = "\n".join([event["command"], *command_words(event["command"])]) if event["command"] else ""
     for raw in command_paths(event["command"]):
         rel = normalise(raw, root)
         pattern = blocked_by(rel)
         if pattern:
             return refuse(agent, rel, pattern)
+        problem = secret_problem(root, rel, command_text)
+        if problem:
+            secret_problems.append(problem)
+    if secret_problems:
+        if SECRETS.get("mode", "block") == "block":
+            return hookio.block(agent, "BLOCKED by CodeRig: " + "\n".join(secret_problems)
+                                + "\n  Stop and tell the developer rather than working around it.")
+        return hookio.notice(agent, "CodeRig warning (the secret policy allows this write): "
+                             + "\n".join(secret_problems))
     return 0
 
 

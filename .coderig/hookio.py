@@ -147,7 +147,7 @@ def agent() -> str:
 
 
 def read_event() -> dict:
-    """The agent's hook payload as {event, tool, paths, command, prompt, session}; empty on bad input."""
+    """The agent's hook payload as {event, tool, paths, command, content, prompt, session}; empty on bad input."""
     # Bytes, as UTF-8: on Windows text-mode stdin is decoded with the console's code page, and a payload
     # piped from PowerShell starts with a byte-order mark that json.loads rejects.
     stream = getattr(sys.stdin, "buffer", None)
@@ -190,14 +190,22 @@ def read_event() -> dict:
         paths += [a or b for a, b in _PATCH_FILE.findall(patch)]
     if command.startswith("*** Begin Patch"):
         command = ""
+
+    # The text being written, for the guard's secret check: a whole file, an edit's new text, a patch's added lines.
+    written = [tool_input.get(key) for key in ("content", "contents", "file_text", "new_string", "new_str")]
+    written += [edit.get("new_string") for edit in tool_input.get("edits") or [] if isinstance(edit, dict)]
+    written += ["\n".join(line[1:] for line in patch.splitlines() if line.startswith("+") and not line.startswith("+++"))
+                for patch in patches]
+    content = "\n".join(text for text in written if isinstance(text, str) and text)
     if tool.lower() in _READ_ONLY:
-        paths, command = [], ""
+        paths, command, content = [], "", ""
 
     return {
         "event": str(raw.get("hook_event_name") or ""),
         "tool": tool,
         "paths": [p.strip() for p in dict.fromkeys(paths) if p and p.strip()],
         "command": command,
+        "content": content,
         "prompt": str(raw.get("prompt") or ""),
         "session": str(raw.get("session_id") or raw.get("sessionId") or raw.get("conversation_id") or ""),
     }

@@ -23,6 +23,7 @@
       "description": "Every dependency this change adds to a pom is on the project's approved list.",
       "kind": "local",
       "run": "python .coderig/checks.py dependency-policy",
+      "policies": [],
       "timeout": 60,
       "blocking": true,
       "applies_when": [
@@ -35,6 +36,7 @@
       "description": "Code follows the project's formatter (Spring Java Format, tabs).",
       "kind": "local",
       "run": "mvn -q spring-javaformat:validate",
+      "policies": [],
       "fix": "mvn -q spring-javaformat:apply",
       "docker": {
         "image": "maven:3.9-eclipse-temurin-17",
@@ -56,16 +58,37 @@
       "description": "This change adds no disabled test, lint suppression or skipped verification.",
       "kind": "local",
       "run": "python .coderig/checks.py no-bypass",
+      "policies": [],
       "timeout": 60,
       "blocking": true,
       "applies_when": [],
       "hint": "This change disables a test, suppresses a lint or type check, or skips verification (--no-verify, -DskipTests and similar). Fix the code or the test instead. Do not disable, skip or suppress to get a green result. If a suppression is genuinely needed, the developer must approve it in review. Re-check with `python .coderig/verify.py --only no-bypass`."
     },
     {
+      "id": "pii-exposure",
+      "description": "This change does not log, expose or export personal data in a way the personal-data-handling policy forbids.",
+      "kind": "inferential",
+      "run": "",
+      "agent": "pii-reviewer",
+      "policies": [
+        "personal-data-handling"
+      ],
+      "escalation": {
+        "block_on": "high",
+        "min_confidence": 0.7,
+        "on_error": "warn"
+      },
+      "timeout": 120,
+      "blocking": true,
+      "applies_when": [],
+      "hint": "Launchpad's pii-reviewer read this change against the personal-data-handling policy and found personal data that is logged, shown or exported where the policy forbids it. Each finding quotes the added line it is about. Fix the code, not the finding: log the id instead of the person, mask or drop the field in an export, keep personal data out of URLs, error messages and test fixtures. Do not rename a field or split a line to hide it from the review. If the field genuinely has to be there, stop and tell the developer why, so they can approve it in review. Re-check with `python .coderig/verify.py --only pii-exposure`."
+    },
+    {
       "id": "secret-scan",
       "description": "This change adds no credential, key or token to source, config, tests or fixtures.",
       "kind": "local",
       "run": "python .coderig/checks.py secret-scan",
+      "policies": [],
       "timeout": 60,
       "blocking": true,
       "applies_when": [],
@@ -76,6 +99,7 @@
       "description": "The project compiles and its unit and slice tests pass.",
       "kind": "local",
       "run": "mvn -B test -Dspring-javaformat.skip=true -Dtest=!MySqlIntegrationTests,!PostgresIntegrationTests",
+      "policies": [],
       "docker": {
         "image": "maven:3.9-eclipse-temurin-17",
         "workdir": "/work",
@@ -91,5 +115,8 @@
       ],
       "hint": "The build or the tests failed. Read the first compile error or the first failing test, and fix the code. Change a test only if the test itself is wrong, and never disable, skip or weaken one to get a green result. The MySQL and Postgres integration tests are excluded here because they need Docker inside the container. Re-check with `python .coderig/verify.py --only tests`."
     }
-  ]
+  ],
+  "launchpad": "http://localhost:8000",
+  "workspace": "proj-d9b4cf",
+  "token_env": "CODERIG_TOKEN"
 }

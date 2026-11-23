@@ -25,8 +25,6 @@ _These are enforced in CI. A change that violates one cannot be merged._
 ## Never write to these paths
 
 - `.github/workflows/**`
-- `**/.env`
-- `**/.env.*`
 - `**/auth/**`
 - `**/Auth/**`
 - `**/security/**`

@@ -11,12 +11,15 @@ Runs the sensors from sensors.json (served by Launchpad's registry).
 """
 import hashlib
 import json
+import os
 import re
 import shlex
 import shutil
 import subprocess
 import sys
 import time
+import urllib.error
+import urllib.request
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -114,10 +117,104 @@ def run_command(sensor, text):
     return ("ok" if done.returncode == 0 else "failed"), trim(output, workdir)
 
 
-def timed(sensor):
+def timed(sensor, session=None):
     started = time.time()
-    status, output = run_command(sensor, sensor["run"])
-    return {"sensor": sensor, "status": status, "output": output, "seconds": round(time.time() - started, 1)}
+    evaluation = None
+    if sensor.get("kind") == "inferential":
+        status, output, evaluation = evaluate(sensor, session)
+    else:
+        status, output = run_command(sensor, sensor["run"])
+    result = {"sensor": sensor, "status": status, "output": output, "seconds": round(time.time() - started, 1)}
+    if evaluation:
+        result["evaluation"] = evaluation
+    return result
+
+
+# ── an inferential sensor: Launchpad decides ─────────────────────────────────
+
+MAX_DIFF_CHARS = 400_000
+MAX_NEW_FILE_CHARS = 100_000
+
+
+def gateway_key():
+    """The developer's gateway key: the environment first (CI sets it), then the store `coderig connect`
+    keeps outside the repository."""
+    key = os.getenv(CONFIG.get("token_env") or "CODERIG_TOKEN", "").strip()
+    if key:
+        return key
+    try:
+        store = json.loads((Path.home() / ".coderig" / "credentials.json").read_text(encoding="utf-8"))
+        return ((store.get(CONFIG.get("workspace") or "") or {}).get("gateway") or {}).get("key") or ""
+    except (OSError, ValueError, AttributeError):
+        return ""
+
+
+def change():
+    """The branch's change as a unified diff, committed or not, against where it left the default branch,
+    with the files git does not track yet as added files. CodeRig's own files are left out."""
+    diff = git("diff", anchor(), "--", ".", *excludes())
+    untracked = [n for n in git("ls-files", "--others", "--exclude-standard").splitlines() if n and not ignored(n)]
+    for path in sorted(untracked):
+        try:
+            lines = (ROOT / path).read_text(encoding="utf-8")[:MAX_NEW_FILE_CHARS].splitlines()
+        except (OSError, UnicodeDecodeError):
+            continue                            # binary or unreadable: no line to review
+        diff += (f"diff --git a/{path} b/{path}\nnew file mode 100644\n--- /dev/null\n+++ b/{path}\n"
+                 f"@@ -0,0 +1,{len(lines)} @@\n" + "".join(f"+{line}\n" for line in lines))
+    return diff[:MAX_DIFF_CHARS]
+
+
+def unavailable(sensor, why):
+    """An evaluation that could not finish. The sensor's on_error decides: `block` stops the agent like a
+    failed check; `warn` (the default) tells the developer and lets the agent finish."""
+    if (sensor.get("escalation") or {}).get("on_error") == "block" and sensor.get("blocking", True):
+        return "failed", f"Not evaluated: {why}. This sensor's policy stops the finish when it cannot evaluate.", None
+    return "error", f"Not evaluated: {why}.", None
+
+
+def findings_text(answer):
+    lines = [answer.get("reason") or ""]
+    for f in answer.get("findings") or []:
+        mark = "blocks" if f.get("blocks") else ("no evidence in the change" if not f.get("verified") else "below the bar")
+        lines.append(f"- [{f.get('severity')}, {mark}] {f.get('file') or '?'}:{f.get('line') or '?'} "
+                     f"{f.get('category') or ''}: {f.get('explanation') or ''}".rstrip())
+        if f.get("evidence"):
+            lines.append("    evidence: " + f["evidence"].strip()[:200])
+        if f.get("recommendation"):
+            lines.append("    fix: " + f["recommendation"])
+    if answer.get("id"):
+        lines.append(f"(Launchpad evaluation {answer['id']})")
+    return "\n".join(line for line in lines if line)
+
+
+def evaluate(sensor, session):
+    """(status, output, evaluation id) from Launchpad's verdict: block is failed, warn is warn, pass is ok."""
+    launchpad = (os.getenv("CODERIG_LAUNCHPAD") or CONFIG.get("launchpad") or "").rstrip("/")
+    workspace = CONFIG.get("workspace")
+    if not launchpad or not workspace:
+        return unavailable(sensor, "this checkout has no Launchpad to ask (run `coderig connect`)")
+    key = gateway_key()
+    if not key:
+        return unavailable(sensor, "no gateway key on this machine (run `coderig connect`)")
+    diff = change()
+    if not diff.strip():
+        return "ok", "", None
+    body = json.dumps({"diff": diff, "branch": git("rev-parse", "--abbrev-ref", "HEAD").strip() or None,
+                       "session_id": session or None}).encode("utf-8")
+    request = urllib.request.Request(
+        f"{launchpad}/api/v1/workspace/{workspace}/sensors/{sensor['id']}/evaluate", data=body, method="POST",
+        headers={"Content-Type": "application/json", "Authorization": f"Bearer {key}"})
+    try:
+        with urllib.request.urlopen(request, timeout=sensor.get("timeout", 120) + 10) as response:
+            answer = json.loads(response.read() or b"{}")
+    except urllib.error.HTTPError as exc:
+        return unavailable(sensor, f"Launchpad answered HTTP {exc.code}")
+    except (OSError, ValueError) as exc:        # URLError and timeouts are OSErrors
+        return unavailable(sensor, f"Launchpad could not be reached ({type(exc).__name__})")
+    status = {"block": "failed", "warn": "warn", "pass": "ok"}.get(answer.get("decision"))
+    if status is None:
+        return unavailable(sensor, "Launchpad's answer had no decision")
+    return status, ("" if status == "ok" else findings_text(answer)), answer.get("id")
 
 
 # ── what has changed ─────────────────────────────────────────────────────────
@@ -194,11 +291,13 @@ def save_state(state):
     STATE.write_text(json.dumps(state), encoding="utf-8")
 
 
-def log_run(session, outcome, results, attempt=None):
-    """One JSON line per stop in .coderig/state/runs.jsonl: what ran, what it said, how long it took."""
+def log_run(session, outcome, results, attempt=None, agent=None):
+    """One JSON line per stop in .coderig/state/runs.jsonl: what ran, what it said, how long it took. A run that
+    checked something is also sent to Launchpad (publish)."""
     record = {
         "time": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
         "session": session,
+        "agent": agent,
         "outcome": outcome,
         "seconds": round(time.time() - START, 1),
         "sensors": [{
@@ -206,6 +305,7 @@ def log_run(session, outcome, results, attempt=None):
             "status": r["status"],
             "seconds": r["seconds"],
             "detail": r["output"][:800] if r["status"] != "ok" else "",
+            **({"evaluation": r["evaluation"]} if r.get("evaluation") else {}),
         } for r in results],
     }
     if attempt is not None:
@@ -220,6 +320,32 @@ def log_run(session, outcome, results, attempt=None):
             handle.write(json.dumps(record, ensure_ascii=False).replace("http://", "http\\u003a//") + "\n")
     except OSError:
         pass                                    # logging must never break the hook
+    if record["sensors"]:
+        publish(record)
+
+
+PUBLISH_TIMEOUT = 3
+
+
+def publish(record):
+    """Send the run to Launchpad, which lists it in its Workflows area (source=coderig) with the workspace, the
+    developer (from the key), the session and the agent. Best effort: Launchpad being away never fails or holds up
+    the hook for more than a few seconds, and runs.jsonl keeps the run either way."""
+    launchpad = (os.getenv("CODERIG_LAUNCHPAD") or CONFIG.get("launchpad") or "").rstrip("/")
+    workspace = CONFIG.get("workspace")
+    key = gateway_key() if launchpad and workspace else ""
+    if not key:
+        return
+    body = {"session_id": record["session"] or None, "agent": record.get("agent"),
+            "branch": git("rev-parse", "--abbrev-ref", "HEAD").strip() or None, "outcome": record["outcome"],
+            "attempt": record.get("attempt"), "seconds": record["seconds"], "sensors": record["sensors"]}
+    request = urllib.request.Request(
+        f"{launchpad}/api/v1/workspace/{workspace}/coderig/runs", data=json.dumps(body).encode("utf-8"),
+        method="POST", headers={"Content-Type": "application/json", "Authorization": f"Bearer {key}"})
+    try:
+        urllib.request.urlopen(request, timeout=PUBLISH_TIMEOUT).close()
+    except Exception:
+        pass
 
 
 def sensors():
@@ -232,7 +358,7 @@ def report(results):
         s = r["sensor"]
         if r["status"] == "ok":
             continue
-        label = "FAILED" if r["status"] == "failed" else "COULD NOT RUN"
+        label = {"failed": "FAILED", "warn": "WARNING (does not block)"}.get(r["status"], "COULD NOT RUN")
         lines.append(f"[{s['id']}] {s.get('description', '')} - {label}")
         lines.append(r["output"] or "(no output)")
         if r["status"] == "failed" and s.get("hint"):
@@ -265,34 +391,38 @@ def hook():
         log_run(session, "skipped-unchanged", [])
         return 0
 
-    results = [timed(s) for s in sensors()]
+    results = [timed(s, session) for s in sensors()]
     failed = blocking_failures(results)
     broken = [r for r in results if r["status"] == "error"]
+    warned = [r for r in results if r["status"] == "warn"]
 
     if not failed:
         state.pop(session, None)
-        if print_fp != "unknown":
-            # Remember what passed, for every session on this repository. Fingerprint the tree as
-            # the sensors left it (a build may write files) so the next stop compares like with like.
+        if print_fp != "unknown" and not broken:
+            # Remember what passed, for every session on this repository; a check that could not run did not
+            # pass, so that change is checked again. Fingerprint the tree as the sensors left it (a build may
+            # write files) so the next stop compares like with like.
             state["_passed"] = (passed + [fingerprint()])[-20:]
         save_state(state)
-        log_run(session, "error" if broken else "pass", results)
-        if broken:
-            return hookio.notice(agent, "Harness checks could not run:\n" + report(broken))
+        log_run(session, "error" if broken else "warn" if warned else "pass", results, agent=agent)
+        told = ([f"Harness checks could not run:\n{report(broken)}"] if broken else []) + \
+            ([f"Harness warnings (they do not stop the agent):\n{report(warned)}"] if warned else [])
+        if told:
+            return hookio.notice(agent, "\n\n".join(told))
         return 0
 
     entry["attempts"] += 1
     if entry["attempts"] > limit:
         state.pop(session, None)
         save_state(state)
-        log_run(session, "exhausted", results, attempt=entry["attempts"])
+        log_run(session, "exhausted", results, attempt=entry["attempts"], agent=agent)
         return hookio.notice(agent,
             f"Harness: sensors still failing after {limit} attempts. Stopping so you can decide.\n"
             + report(failed))
 
     state[session] = entry
     save_state(state)
-    log_run(session, "feedback", results, attempt=entry["attempts"])
+    log_run(session, "feedback", results, attempt=entry["attempts"], agent=agent)
     return hookio.feedback(agent,
         f"HARNESS FEEDBACK (attempt {entry['attempts']} of {limit}). Fix these, then finish again; "
         f"the checks re-run automatically.\n\n" + report(failed) + "\n")
@@ -338,7 +468,7 @@ def main():
     text = report(results)
     if text:
         print("\n" + text)
-    return 0 if all(r["status"] == "ok" for r in results) else 1
+    return 0 if all(r["status"] in ("ok", "warn") for r in results) else 1
 
 
 if __name__ == "__main__":

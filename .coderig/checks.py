@@ -34,11 +34,18 @@ SECRETS = [
     ("credential assignment", re.compile(
         r"""(?i)\b(password|passwd|pwd|pw|secret|api[_-]?key|access[_-]?token|auth[_-]?token|"""
         r"""client[_-]?secret|connection[_-]?string)\b\s*[:=]\s*["']([^"'\s$<{]{8,})["']""")),
+    # .env and properties style: DB_PASSWORD=..., spring.datasource.password: ..., export API_KEY=...
+    # A whole line that assigns a literal, so `password = getPassword()` and `pw = user.pw;` are not findings.
+    ("credential setting", re.compile(
+        r"""(?i)^\s*(export\s+)?[a-z0-9_.-]*(password|passwd|secret|api[_-]?key|access[_-]?key|"""
+        r"""access[_-]?token|auth[_-]?token|client[_-]?secret|private[_-]?key)[a-z0-9_.-]*\s*[:=]\s*"""
+        r"""["']?([^\s"'$<{#()\[\];,]{8,})["']?\s*$""")),
 ]
 
 # A line that reads its value from the environment, or says it is a placeholder, is not a finding.
 PLACEHOLDER = re.compile(
     r"(?i)example|changeme|placeholder|dummy|xxxx|\*\*\*|<[^>]*>|\$\{|process\.env|os\.environ|getenv"
+    r"|your[_-]"
 )
 
 BYPASS = [
