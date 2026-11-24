@@ -1,0 +1,43 @@
+schema_version: "1.0"
+
+preset:
+  id: "shiftforge-modernization"
+  name: "ShiftForge modernization"
+  version: "1.0.0"
+  description: "Spec, plan, tasks and checklist templates for changing an existing system: current and target state, behaviour that must be preserved, rollback, and the id-citation convention the spec pack relies on"
+  author: "AI Engineering CoE"
+  license: "MIT"
+
+requires:
+  speckit_version: ">=1.4.0"
+
+provides:
+  templates:
+    - type: "template"
+      name: "spec-template"
+      file: "templates/spec-template.md"
+      description: "Change specification: current state, target state, preserved behaviour, requirements that cite their source ids, rollback"
+      replaces: "spec-template"
+
+    - type: "template"
+      name: "plan-template"
+      file: "templates/plan-template.md"
+      description: "Change plan: constitution check, tracks, existing structure, migration waves, rollback"
+      replaces: "plan-template"
+
+    - type: "template"
+      name: "tasks-template"
+      file: "templates/tasks-template.md"
+      description: "Tasks that carry the requirement and work-plan ids they implement"
+      replaces: "tasks-template"
+
+    - type: "template"
+      name: "checklist-template"
+      file: "templates/checklist-template.md"
+      description: "Requirements-quality checklist with the modernization categories"
+      replaces: "checklist-template"
+
+tags:
+  - "shiftforge"
+  - "modernization"
+  - "transformation"

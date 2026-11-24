@@ -1,0 +1,138 @@
+{
+  "base_branch": "main",
+  "files": [
+    {
+      "artifact": "Brief",
+      "made_from": [
+        {
+          "id": "28f30165fd6146e5aa1ea95c1adcf8c8",
+          "revision": 2,
+          "type": "Brief"
+        }
+      ],
+      "path": "specs/002-java-17-to-21-upgrade-5d8272c2/brief.md",
+      "sha256": "3d3b85c4e5302147865309a852181bf275f17f4ef2469dfc80485938139c8506"
+    },
+    {
+      "artifact": "Architecture",
+      "made_from": [
+        {
+          "id": "36f5ddfeb86e43ef9c9c030e487828e6",
+          "part": "application",
+          "revision": 3,
+          "type": "Architecture"
+        },
+        {
+          "id": "6eb7a994cddf46f782ac179202e1c1bf",
+          "part": "platform",
+          "revision": 2,
+          "type": "Architecture"
+        }
+      ],
+      "path": "specs/002-java-17-to-21-upgrade-5d8272c2/design.md",
+      "sha256": "417fd6ba569b96230fe7a7883856853ff80e1154bbb22023746c232667fc1f72"
+    },
+    {
+      "artifact": "Architecture",
+      "made_from": [
+        {
+          "id": "36f5ddfeb86e43ef9c9c030e487828e6",
+          "part": "application",
+          "revision": 3,
+          "type": "Architecture"
+        },
+        {
+          "id": "6eb7a994cddf46f782ac179202e1c1bf",
+          "part": "platform",
+          "revision": 2,
+          "type": "Architecture"
+        }
+      ],
+      "path": "specs/002-java-17-to-21-upgrade-5d8272c2/rollback.md",
+      "sha256": "6858642a243e2a46c93320be0c395c82075d0f867794896c7b20b3557c80071c"
+    },
+    {
+      "artifact": "ChangeSpec",
+      "made_from": [
+        {
+          "id": "36f5ddfeb86e43ef9c9c030e487828e6",
+          "part": "application",
+          "revision": 3,
+          "type": "Architecture"
+        },
+        {
+          "id": "6eb7a994cddf46f782ac179202e1c1bf",
+          "part": "platform",
+          "revision": 2,
+          "type": "Architecture"
+        },
+        {
+          "id": "28f30165fd6146e5aa1ea95c1adcf8c8",
+          "revision": 2,
+          "type": "Brief"
+        }
+      ],
+      "path": "specs/002-java-17-to-21-upgrade-5d8272c2/spec.md",
+      "sha256": "5b20c16b87a0cd4237085fa8a04cd0e4075d9d407d3336fad9e73e13b530e6c4"
+    },
+    {
+      "artifact": "derived",
+      "made_from": [],
+      "path": "specs/002-java-17-to-21-upgrade-5d8272c2/traceability.md",
+      "sha256": "3e333ee6466e8076b7561bec0819ea16d13de6c59e6c23694ceb003611775070"
+    }
+  ],
+  "made_from": [
+    {
+      "id": "36f5ddfeb86e43ef9c9c030e487828e6",
+      "part": "application",
+      "revision": 3,
+      "type": "Architecture"
+    },
+    {
+      "id": "6eb7a994cddf46f782ac179202e1c1bf",
+      "part": "platform",
+      "revision": 2,
+      "type": "Architecture"
+    },
+    {
+      "id": "923cb0f68624476ca10a11714b9ffdb1",
+      "revision": 2,
+      "type": "Assessment"
+    },
+    {
+      "id": "9fd2eeb4f6fc454f80ab22e5b9638f94",
+      "revision": 1,
+      "type": "BaselineSpecs"
+    },
+    {
+      "id": "28f30165fd6146e5aa1ea95c1adcf8c8",
+      "revision": 2,
+      "type": "Brief"
+    },
+    {
+      "id": "2c3ba50863d549f1b5d1562d60355bcc",
+      "revision": 2,
+      "type": "ChangeSpec"
+    },
+    {
+      "id": "0470292c19b244ddb9f48999467327d6",
+      "revision": 1,
+      "type": "KnowledgeReadiness"
+    }
+  ],
+  "pr_lifecycle": "spec-then-implementation",
+  "preset": "shiftforge-modernization",
+  "run_id": "wf-team-shiftforge-modernization-v2-fac433da716b1e00",
+  "schema": 1,
+  "source_commit": "5b9f2a62a8d8122f3958e890cb3242e05f07d47f",
+  "spec_kit": {
+    "preset": "shiftforge-modernization",
+    "preset_version": "1.0.0",
+    "version": "1.4.4"
+  },
+  "spec_pack": "standard",
+  "spec_version": 1,
+  "transformation_id": "java-17-to-21-upgrade-5d8272c2",
+  "withheld": []
+}

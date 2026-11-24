@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "presets": {
+    "shiftforge-modernization": {
+      "version": "1.0.0",
+      "source": "local",
+      "manifest_hash": "sha256:9426ec65f86f68065cce3edbd50bd8334bafabc15b81be80824fced2fc4424e5",
+      "enabled": true,
+      "priority": 10,
+      "registered_commands": {},
+      "registered_skills": {},
+      "installed_at": "2026-11-24T17:41:33.353927+00:00"
+    }
+  }
+}
