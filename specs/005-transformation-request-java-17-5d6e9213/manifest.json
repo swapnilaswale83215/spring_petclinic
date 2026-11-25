@@ -1,0 +1,233 @@
+{
+  "base_branch": "main",
+  "baseline": {
+    "id": "49599ed47f8e4b59b527eccfefbb6418",
+    "revision": 1,
+    "type": "BaselineSpecs"
+  },
+  "decisions": [
+    {
+      "approvals": [
+        {
+          "at": "2026-11-25T06:44:52.780621+00:00",
+          "by": "user",
+          "decision": "brief-agreement",
+          "outcome": "approved",
+          "role": "user"
+        }
+      ],
+      "approved_at": "2026-11-25T06:44:52.780621+00:00",
+      "decision": "brief-agreement",
+      "id": "c79ce42913484f57b4a9b83abcea23e8",
+      "outcome": "approved",
+      "revision": 3,
+      "type": "Brief"
+    },
+    {
+      "approvals": [
+        {
+          "at": "2026-11-25T07:26:09.645830+00:00",
+          "by": "user",
+          "decision": "architecture-approval",
+          "outcome": "approved",
+          "role": "user"
+        }
+      ],
+      "approved_at": "2026-11-25T07:26:09.645830+00:00",
+      "decision": "architecture-approval",
+      "id": "4ca7e3e517154057aabc475e3cdf39a7",
+      "outcome": "approved",
+      "revision": 3,
+      "type": "ChangeSpec"
+    },
+    {
+      "approvals": [
+        {
+          "at": "2026-11-25T06:39:54.914195+00:00",
+          "by": "user",
+          "decision": "baseline-documentation",
+          "outcome": "approved",
+          "role": "user"
+        }
+      ],
+      "approved_at": "2026-11-25T06:39:54.914195+00:00",
+      "decision": "baseline-documentation",
+      "id": "ac2fc74694de46079a7b2d0bd73cd006",
+      "outcome": "approved",
+      "revision": 1,
+      "type": "KnowledgeReadiness"
+    }
+  ],
+  "files": [
+    {
+      "artifact": "Brief",
+      "made_from": [
+        {
+          "id": "c79ce42913484f57b4a9b83abcea23e8",
+          "revision": 3,
+          "type": "Brief"
+        }
+      ],
+      "path": "specs/005-transformation-request-java-17-5d6e9213/brief.md",
+      "sha256": "04d6c3baaeff8f526ff3161ef9b0208281464e18822c92605e9a6f491b44166b"
+    },
+    {
+      "artifact": "Architecture",
+      "made_from": [
+        {
+          "id": "1cd59fbeb6394fa49a5196cfa96fdf37",
+          "part": "application",
+          "revision": 5,
+          "type": "Architecture"
+        },
+        {
+          "id": "486921c9e4364976b03b5db707452ebc",
+          "revision": 1,
+          "type": "Plan"
+        }
+      ],
+      "path": "specs/005-transformation-request-java-17-5d6e9213/design.md",
+      "sha256": "be8e437c84ae97425c8696b8d8ed83638087b141c9237eb9a34a3c990f37a275"
+    },
+    {
+      "artifact": "Architecture",
+      "made_from": [
+        {
+          "id": "1cd59fbeb6394fa49a5196cfa96fdf37",
+          "part": "application",
+          "revision": 5,
+          "type": "Architecture"
+        },
+        {
+          "id": "486921c9e4364976b03b5db707452ebc",
+          "revision": 1,
+          "type": "Plan"
+        }
+      ],
+      "path": "specs/005-transformation-request-java-17-5d6e9213/rollback.md",
+      "sha256": "f6ff62a3a4cda13d380d598b96ed8cbbc5aefb66d1517220b331aa6a21806e88"
+    },
+    {
+      "artifact": "ChangeSpec",
+      "made_from": [
+        {
+          "id": "1cd59fbeb6394fa49a5196cfa96fdf37",
+          "part": "application",
+          "revision": 5,
+          "type": "Architecture"
+        },
+        {
+          "id": "c79ce42913484f57b4a9b83abcea23e8",
+          "revision": 3,
+          "type": "Brief"
+        }
+      ],
+      "path": "specs/005-transformation-request-java-17-5d6e9213/spec.md",
+      "sha256": "480a3dd651c7f1b7c8a983b49c1a0c20db9f27657ef11c64ca5347438cc523d1"
+    },
+    {
+      "artifact": "derived",
+      "made_from": [],
+      "path": "specs/005-transformation-request-java-17-5d6e9213/traceability.md",
+      "sha256": "814b3cc5b098b5cf2740f11154830b1b71fc9fee4e5b386f9314963d103299cd"
+    }
+  ],
+  "made_from": [
+    {
+      "id": "1cd59fbeb6394fa49a5196cfa96fdf37",
+      "part": "application",
+      "revision": 5,
+      "type": "Architecture"
+    },
+    {
+      "id": "306692f0716043f39f31a0cfc5dc0d5f",
+      "revision": 2,
+      "type": "Assessment"
+    },
+    {
+      "id": "2a66b8653b0940cfb61df37eab115e79",
+      "revision": 1,
+      "type": "Backlog"
+    },
+    {
+      "id": "49599ed47f8e4b59b527eccfefbb6418",
+      "revision": 1,
+      "type": "BaselineSpecs"
+    },
+    {
+      "approvals": [
+        {
+          "at": "2026-11-25T06:44:52.780621+00:00",
+          "by": "user",
+          "decision": "brief-agreement",
+          "outcome": "approved",
+          "role": "user"
+        }
+      ],
+      "approved_at": "2026-11-25T06:44:52.780621+00:00",
+      "decision": "brief-agreement",
+      "id": "c79ce42913484f57b4a9b83abcea23e8",
+      "outcome": "approved",
+      "revision": 3,
+      "type": "Brief"
+    },
+    {
+      "approvals": [
+        {
+          "at": "2026-11-25T07:26:09.645830+00:00",
+          "by": "user",
+          "decision": "architecture-approval",
+          "outcome": "approved",
+          "role": "user"
+        }
+      ],
+      "approved_at": "2026-11-25T07:26:09.645830+00:00",
+      "decision": "architecture-approval",
+      "id": "4ca7e3e517154057aabc475e3cdf39a7",
+      "outcome": "approved",
+      "revision": 3,
+      "type": "ChangeSpec"
+    },
+    {
+      "id": "f8845e61f4844fb9bc3a2774b382b537",
+      "revision": 1,
+      "type": "Estimates"
+    },
+    {
+      "approvals": [
+        {
+          "at": "2026-11-25T06:39:54.914195+00:00",
+          "by": "user",
+          "decision": "baseline-documentation",
+          "outcome": "approved",
+          "role": "user"
+        }
+      ],
+      "approved_at": "2026-11-25T06:39:54.914195+00:00",
+      "decision": "baseline-documentation",
+      "id": "ac2fc74694de46079a7b2d0bd73cd006",
+      "outcome": "approved",
+      "revision": 1,
+      "type": "KnowledgeReadiness"
+    },
+    {
+      "id": "486921c9e4364976b03b5db707452ebc",
+      "revision": 1,
+      "type": "Plan"
+    }
+  ],
+  "pr_lifecycle": "spec-then-implementation",
+  "preset": "shiftforge-modernization",
+  "run_id": "wf-team-shiftforge-modernization-v2-72b3b754fc983acd",
+  "schema": 1,
+  "source_commit": "44ebfd6e73cfd5e743a82725319a0c52db04fd5e",
+  "spec_kit": {
+    "preset": "shiftforge-modernization",
+    "preset_version": "1.0.0",
+    "version": "1.4.4"
+  },
+  "spec_pack": "standard",
+  "spec_version": 1,
+  "transformation_id": "transformation-request-java-17-5d6e9213",
+  "withheld": []
+}
