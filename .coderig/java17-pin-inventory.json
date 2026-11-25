@@ -1,0 +1,149 @@
+{
+  "artifact": "java17-pin-inventory",
+  "version": 2,
+  "baseline": {
+    "ref": "main",
+    "sha": "898c381d3b9d259a63f9562a45f7626348022ffc",
+    "note": "After CodeRig .coderig/ and coderig-gate removal; CI workflows restored",
+    "date": "2026-11-25"
+  },
+  "target_java": 21,
+  "verified_sdkman_id": "21.0.13.1-ms",
+  "verified_base_image": "mcr.microsoft.com/vscode/devcontainers/java:1-21-bullseye",
+  "classification_table": [
+    {
+      "id": "PIN-01",
+      "file": "pom.xml",
+      "line": 19,
+      "key": "java.version",
+      "pattern": "<java.version>17</java.version>",
+      "current": "17",
+      "target": "21",
+      "class": "in_scope"
+    },
+    {
+      "id": "PIN-02",
+      "file": "build.gradle",
+      "line": 19,
+      "key": "JavaLanguageVersion",
+      "pattern": "JavaLanguageVersion.of(17)",
+      "current": "17",
+      "target": "21",
+      "class": "in_scope"
+    },
+    {
+      "id": "PIN-03",
+      "file": ".github/workflows/maven-build.yml",
+      "line": 18,
+      "key": "matrix.java",
+      "pattern": "java: [ '17' ]",
+      "current": "17",
+      "target": "21",
+      "class": "in_scope"
+    },
+    {
+      "id": "PIN-04",
+      "file": ".github/workflows/gradle-build.yml",
+      "line": 18,
+      "key": "matrix.java",
+      "pattern": "java: [ '17' ]",
+      "current": "17",
+      "target": "21",
+      "class": "in_scope"
+    },
+    {
+      "id": "PIN-05",
+      "file": ".devcontainer/Dockerfile",
+      "line": 2,
+      "key": "ARG VARIANT",
+      "pattern": "ARG VARIANT=17-bullseye",
+      "current": "17-bullseye",
+      "target": "21-bullseye",
+      "class": "in_scope"
+    },
+    {
+      "id": "PIN-06",
+      "file": ".devcontainer/Dockerfile",
+      "line": 3,
+      "key": "FROM tag prefix",
+      "pattern": "FROM .../java:0-${VARIANT}",
+      "current": "0-",
+      "target": "1-",
+      "class": "in_scope"
+    },
+    {
+      "id": "PIN-07",
+      "file": ".devcontainer/Dockerfile",
+      "line": 9,
+      "key": "ARG JAVA_VERSION",
+      "pattern": "ARG JAVA_VERSION=17.0.7-ms",
+      "current": "17.0.7-ms",
+      "target": "21.0.13.1-ms",
+      "class": "in_scope"
+    },
+    {
+      "id": "GONE-01",
+      "file": ".coderig/sensors.json",
+      "key": "format/tests image",
+      "pattern": "maven:3.9-eclipse-temurin-17",
+      "class": "removed",
+      "reason": ".coderig/ deleted from main; harness pins no longer in repo"
+    },
+    {
+      "id": "GONE-02",
+      "file": ".coderig/harness.yaml",
+      "key": "format/tests image",
+      "pattern": "maven:3.9-eclipse-temurin-17",
+      "class": "removed",
+      "reason": ".coderig/ deleted from main; harness pins no longer in repo"
+    },
+    {
+      "id": "GONE-03",
+      "file": ".github/workflows/coderig-gate.yml",
+      "class": "removed",
+      "reason": "coderig-gate.yml deleted; blocked-scope gate offline"
+    },
+    {
+      "id": "EXC-01",
+      "file": "README.md",
+      "line": 17,
+      "pattern": "Java 17 or later",
+      "class": "out_of_scope",
+      "reason": "Docs only; stale after upgrade"
+    },
+    {
+      "id": "EXC-02",
+      "file": "README.md",
+      "line": 111,
+      "pattern": "Java 17 or newer",
+      "class": "out_of_scope",
+      "reason": "Docs only; stale after upgrade"
+    },
+    {
+      "id": "EXC-03",
+      "file": ".gitpod.yml",
+      "class": "out_of_scope",
+      "reason": "Points at Dockerfile only; no Java pin"
+    },
+    {
+      "id": "EXC-04",
+      "file": ".devcontainer/devcontainer.json",
+      "pattern": "21-oracle",
+      "class": "already_21",
+      "reason": "Already Java 21; do not edit"
+    }
+  ],
+  "summary": {
+    "in_scope_count": 7,
+    "removed_count": 3,
+    "out_of_scope_count": 3,
+    "already_21_count": 1,
+    "in_scope_files": [
+      "pom.xml",
+      "build.gradle",
+      ".github/workflows/maven-build.yml",
+      ".github/workflows/gradle-build.yml",
+      ".devcontainer/Dockerfile"
+    ]
+  }
+}
